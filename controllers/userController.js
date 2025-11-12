@@ -172,48 +172,7 @@ export const adddummyRecord = async(req, res) => {
 };
 
 
-export const usersList = async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const search = req.query.search || ""; // get search keyword from query string
 
-    // 🧠 Build search condition (case-insensitive)
-    const searchCondition = search
-      ? {
-          $or: [
-            { name: { $regex: search, $options: "i" } },
-            { email: { $regex: search, $options: "i" } },
-            { phone: { $regex: search, $options: "i" } },
-          ],
-        }
-      : {};
-
-    const options = {
-      page,
-      limit,
-      sort: { createdAt: -1 },
-      select: "name email phone avatar",
-    };
-
-    const result = await User.paginate(searchCondition, options);
-
-    res.json({
-      success: true,
-      data: result.docs,
-      pagination: {
-        totalDocs: result.totalDocs,
-        totalPages: result.totalPages,
-        page: result.page,
-        hasNextPage: result.hasNextPage,
-        hasPrevPage: result.hasPrevPage,
-      },
-    });
-  } catch (error) {
-    console.error("Error fetching users:", error);
-    res.status(500).json({ success: false, message: "Failed to fetch users" });
-  }
-};
 
  
 
@@ -221,7 +180,7 @@ export const userDelete = async (req, res) => {
   try {
     const { id } = req.params; // get user ID from URL
 
-    // 🧠 Check if user exists
+    //  Check if user exists
     const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({
@@ -243,5 +202,133 @@ export const userDelete = async (req, res) => {
       success: false,
       message: "Something went wrong while deleting the user",
     });
+  }
+};
+
+
+
+// Register
+export const createUser = async (req, res) => {
+  const { id, name, email, password, phone } = req.body;
+  console.log("📩 update user endpoint hit");
+
+  try {
+    const userExists = await User.findOne({ id });
+    if (userExists) {
+      console.log("⚠️ User already exists");
+      return res.status(400).json({ message: "User already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await User.create({ name, email, password: hashedPassword, phone });
+
+    console.log("✅ User created:", user._id);
+
+    res.status(201).json({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+    });
+    
+  } catch (error) {
+    console.error("Register error:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateUserById = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    // if (!mongoose.Types.ObjectId.isValid(userId)) {
+    //   return res.status(400).json({ success: false, message: "Invalid user id." });
+    // }
+
+    const { name, email, password, phone } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: "User not found." });
+
+    // If email provided and different, check uniqueness
+    if (email && email !== user.email) {
+      const existing = await User.findOne({ email });
+      if (existing) return res.status(400).json({ success: false, message: "Email already in use." });
+      user.email = email;
+    }
+
+    // Update other fields if provided
+    if (typeof name !== "undefined") user.name = name;
+    if (typeof phone !== "undefined") user.phone = phone;
+
+    // Hash password only if provided (and non-empty)
+    if (password) {
+      user.password = await bcrypt.hash(password, 10);
+    }
+
+    // If you accept avatar uploads via multipart/form-data and middleware (e.g., multer)
+    // if (req.file) user.avatar = `/uploads/${req.file.filename}`;
+
+    const updated = await user.save();
+
+    return res.json({
+      success: true,
+      message: "User updated successfully.",
+      user: {
+        id: updated._id,
+        name: updated.name,
+        email: updated.email,
+        phone: updated.phone,
+        avatar: updated.avatar,
+        updatedAt: updated.updatedAt,
+      },
+    });
+  } catch (err) {
+    console.error("Update user error:", err);
+    return res.status(500).json({ success: false, message: "Server error", error: err.message });
+  }
+};
+
+
+
+export const usersList = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || ""; // get search keyword from query string
+
+    // 🧠 Build search condition (caseinsensitive)
+    const searchCondition = search
+      ? {
+          $or: [
+            { name: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+            { phone: { $regex: search, $options: "i" } },
+          ],
+        }
+      : {};
+
+    const options = {
+      page,
+      limit,
+      sort: { createdAt: -1 },
+      select: "name email phone avatar createdAt",
+    };
+
+    const result = await User.paginate(searchCondition, options);
+
+    res.json({
+      success: true,
+      data: result.docs,
+      pagination: {
+        totalDocs: result.totalDocs,
+        totalPages: result.totalPages,
+        page: result.page,
+        hasNextPage: result.hasNextPage,
+        hasPrevPage: result.hasPrevPage,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch users" });
   }
 };

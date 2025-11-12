@@ -8,7 +8,7 @@ import {
   loginUser,
   getUserProfile,
   updateUserProfile,
-  changePassword,adddummyRecord, usersList,userDelete
+  changePassword,adddummyRecord, usersList,userDelete, createUser, updateUserById
 } from "../controllers/userController.js";
 
 import protect from "../middleware/authMiddleware.js";
@@ -54,12 +54,18 @@ const upload = multer({
    🧩 3. Routes
 -------------------------------------------------*/
 router.post("/register", registerUser);
+
 router.post("/login", loginUser);
 router.get("/profile", protect, getUserProfile);
 router.put("/changePassword", protect, changePassword);
 
 // ✅ updateProfile route with multer and JWT protection
 router.put("/updateProfile", protect, upload.single("profileImage"), updateUserProfile);
+
+
+router.post("/createUser",  protect, createUser);
+router.put("/updateUser/:id",  protect, updateUserById);
+
 
 
 router.get("/add-dummy-users", adddummyRecord);
